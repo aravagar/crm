@@ -14,7 +14,7 @@ This is for Abhiroop Agarwal, Director at Studioforma. Right now leads and order
 2. A stage management screen where Abhiroop can rename, reorder, add, or remove stages, since the exact names in use may not match my default list exactly.
 3. A form to update an existing project's stage as it moves through the pipeline, with a timestamp recorded on each change.
 4. A dashboard view that groups all projects by stage, so Abhiroop can see counts and details at each stage at a glance, from first contact through delivery.
-5. Search and filter projects by client name or project type, and data persistence in the browser (localStorage) so nothing is lost on refresh.
+5. Search and filter projects by client name or project type, and data persistence in the browser (localStorage) so it is not lost on refresh.
 
 ## What I don't know yet
 
