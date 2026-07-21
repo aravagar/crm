@@ -729,6 +729,19 @@ function renderSettings() {
       </div>
     </section>
 
+    <section class="card" style="margin-top:16px;">
+      <h1>Backup</h1>
+      <p class="muted small">
+        Data is saved in this browser only. Export a file to back it up
+        or move it to another device. Import replaces everything here.
+      </p>
+      <div class="set-add">
+        <button class="btn ghost" id="export-btn">Export backup (.json)</button>
+        <button class="btn ghost" id="import-btn">Import backup</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+
     <p id="set-feedback" class="share-feedback" hidden></p>
   `;
 
@@ -778,6 +791,44 @@ function renderSettings() {
     const name = document.getElementById("new-team-name").value;
     if (addTeamMember(db, name)) renderSettings();
     else feedback("That name is empty or already exists.");
+  });
+
+  /* ---- backup: export / import (PRD: FR8) ---- */
+  document.getElementById("export-btn").addEventListener("click", () => {
+    const text = exportData(db);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    a.href = url;
+    a.download = "studioforma-tracker-" + stamp + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+    feedback("Backup downloaded.");
+  });
+
+  const fileInput = document.getElementById("import-file");
+  document.getElementById("import-btn").addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (!confirm("Import will REPLACE all current data with this file. Continue?")) {
+      fileInput.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        db = importData(reader.result); // replaces stored data
+        renderSettings();
+        feedback("Backup imported. Data replaced.");
+      } catch (err) {
+        feedback("Import failed: " + err.message);
+      }
+      fileInput.value = "";
+    };
+    reader.readAsText(file);
   });
 }
 

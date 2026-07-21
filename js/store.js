@@ -392,6 +392,35 @@ function removeTeamMember(data, name) {
   return true;
 }
 
+/* ---------- Backup: export / import (PRD: FR8) ----------
+   localStorage lives in one browser only. Export downloads the
+   whole dataset as JSON so it can be backed up or carried to
+   another device; import replaces the current data with a file.
+   Import is REPLACE-ONLY: it does not merge two devices. */
+
+function exportData(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/* Validates a parsed object looks like our data before accepting
+   it, so a wrong file fails safely instead of corrupting state.
+   Returns the clean data object, or throws. */
+function validateImported(obj) {
+  if (!obj || typeof obj !== "object") throw new Error("Not a valid file.");
+  if (!Array.isArray(obj.stages) || !Array.isArray(obj.projects) || !Array.isArray(obj.team)) {
+    throw new Error("This file is missing stages, projects, or team.");
+  }
+  return obj;
+}
+
+function importData(jsonText) {
+  const parsed = JSON.parse(jsonText);      // throws on malformed JSON
+  const clean = validateImported(parsed);   // throws if wrong shape
+  clean.version = clean.version || 1;
+  saveData(clean);
+  return migrate(clean); // run migrations in case the file is older
+}
+
 /* ---------- Phone normalization ----------
    wa.me needs international format: 91XXXXXXXXXX, no + or
    spaces (PRD: FR7). We store it that way from the start. */
