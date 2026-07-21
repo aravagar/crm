@@ -45,6 +45,32 @@ function defaultData() {
   };
 }
 
+/* ---------- Migration ----------
+   Early projects stored a single productNeeded + estimatedValue.
+   The model is now an items list (name, specs, value each).
+   This converts old projects once, on load, so nothing breaks. */
+function migrate(data) {
+  let changed = false;
+  data.projects.forEach(p => {
+    if (!Array.isArray(p.items)) {
+      p.items = [];
+      if (p.productNeeded || p.estimatedValue) {
+        p.items.push({
+          id: crypto.randomUUID(),
+          name: p.productNeeded || "Item",
+          specs: "",
+          value: p.estimatedValue || 0
+        });
+      }
+      delete p.productNeeded;
+      delete p.estimatedValue;
+      changed = true;
+    }
+  });
+  if (changed) saveData(data);
+  return data;
+}
+
 /* ---------- Load and save ---------- */
 
 function loadData() {
@@ -55,7 +81,7 @@ function loadData() {
       saveData(seeded);
       return seeded;
     }
-    return JSON.parse(raw);
+    return migrate(JSON.parse(raw));
   } catch (err) {
     // Malformed data or localStorage unavailable (e.g. some
     // private-browsing modes). Fall back to in-memory defaults
@@ -119,8 +145,7 @@ function createProject(data, fields) {
     clientName: fields.clientName.trim(),
     contact: normalizePhone(fields.contact || ""),
     projectType: (fields.projectType || "").trim(),
-    productNeeded: (fields.productNeeded || "").trim(),
-    estimatedValue: fields.estimatedValue ? Number(fields.estimatedValue) : null,
+    items: fields.items || [], // [{id, name, specs, value}]
     expectedDelivery: fields.expectedDelivery || null, // internal only
     stageId: stageId,
     status: "active", // active | lost | dispatched
@@ -149,6 +174,18 @@ function createProject(data, fields) {
 
 function getProjectById(data, id) {
   return data.projects.find(p => p.id === id) || null;
+}
+
+/* Sum of item values. Null-safe so an empty project totals 0. */
+function projectTotal(project) {
+  return (project.items || []).reduce((sum, it) => sum + (Number(it.value) || 0), 0);
+}
+
+function addNote(data, projectId, text) {
+  const p = getProjectById(data, projectId);
+  if (!p || !text.trim()) return;
+  p.notes.push({ text: text.trim(), timestamp: new Date().toISOString() });
+  saveData(data);
 }
 
 /* Remember who last made a change, so the person picker

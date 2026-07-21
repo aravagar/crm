@@ -41,24 +41,24 @@ Studioforma's Director, Abhiroop Agarwal, currently has no single place to answe
 
 Sales stages are taken directly from the team's existing CRM vocabulary (screenshot provided by Arav). Production stages come from the existing production tracker, with Finishing renamed to Polishing per current usage.
 
-| #   | Stage                     | Phase              |
-| --- | ------------------------- | ------------------ |
-| 1   | New Inquiry               | Sales              |
-| 2   | Need 1st F2F Meeting      | Sales              |
-| 3   | Factory Visit Done        | Sales              |
-| 4   | Details Awaited for Quote | Sales              |
-| 5   | Quote Shared              | Sales              |
-| 6   | Negotiation Done          | Sales              |
-| 7   | Awaiting Confirmation     | Sales              |
-| 8   | Advance Recd              | Won boundary       |
-| 9   | Order Received            | Production         |
-| 10  | Material Sourced          | Production         |
-| 11  | Carpentry                 | Production         |
-| 12  | Painting                  | Production         |
-| 13  | Polishing                 | Production         |
-| 14  | Quality Check             | Production         |
-| 15  | Packaging                 | Production         |
-| 16  | Dispatched                | Terminal (success) |
+| # | Stage | Phase |
+|---|-------|-------|
+| 1 | New Inquiry | Sales |
+| 2 | Need 1st F2F Meeting | Sales |
+| 3 | Factory Visit Done | Sales |
+| 4 | Details Awaited for Quote | Sales |
+| 5 | Quote Shared | Sales |
+| 6 | Negotiation Done | Sales |
+| 7 | Awaiting Confirmation | Sales |
+| 8 | Advance Recd | Won boundary |
+| 9 | Order Received | Production |
+| 10 | Material Sourced | Production |
+| 11 | Carpentry | Production |
+| 12 | Painting | Production |
+| 13 | Polishing | Production |
+| 14 | Quality Check | Production |
+| 15 | Packaging | Production |
+| 16 | Dispatched | Terminal (success) |
 
 **Lost** is a separate terminal state reachable from any stage before Advance Recd (stages 1 to 7). It is not part of the linear sequence.
 
@@ -81,52 +81,44 @@ This list is the shipped default only. Stage management lets Abhiroop rename, re
 ## Functional Requirements
 
 ### FR1: Project creation
-
-- Form fields: client name (required), contact number, project type, **product needed** (free text, e.g. wardrobe, modular kitchen, wall panels), estimated value, expected/committed delivery date (internal), initial stage (defaults to New Inquiry), initial note (optional).
-- On save, project appears on the dashboard under its stage with a creation event in its history.
+- Form fields: client name (required), contact number, project type, expected/committed delivery date (internal), initial stage (defaults to New Inquiry), initial note (optional), and an **items list**: each item has a name (e.g. Wardrobe, Door with frame), free-text specifications (size, material, finish), and its own value in rupees. Rows can be added and removed; blank rows are ignored on save. The form shows a live running total of all item values.
+- Project value is always the computed sum of its item values, never a separately entered number.
+- On save, project appears on the dashboard under its stage with a creation event in its history. Cards show an item summary and the total value.
 
 ### FR2: Dashboard (default screen)
-
 - Projects grouped by stage in pipeline order, with a count per stage.
 - Search box at the top filters by client name as you type.
 - Filter control for project type.
 - Lost and Dispatched projects live in collapsed/secondary sections so the active pipeline stays clean.
 
 ### FR3: Project detail view
-
 Displayed in this exact order:
-
 1. Basic details: client name, project type, product needed, estimated value, contact number.
 2. Expected/committed delivery date, visually marked as **internal**.
 3. Stage history: every event with stage, action type (advanced / moved back / lost / created), timestamp, and person.
 4. Notes: an append-only note trail with timestamps.
 
 ### FR4: Stage movement
-
 - **Advance:** primary button, moves the project exactly one stage forward in the managed sequence. Records timestamp and person (picked from team list, defaults to last-used name).
 - **Move Back:** secondary, less prominent action. Moves exactly one stage backward. Requires a short reason. Logged identically plus reason.
 - **Mark as Lost:** available only on projects in stages before Advance Recd. Requires a reason. Terminal.
 - No arbitrary stage jumps in MVP.
 
 ### FR5: Stage management
-
 - Screen to rename, reorder, add, and remove stages.
 - Removing a stage that has projects in it requires choosing a destination stage for those projects.
 - Existing history entries keep the stage name as it was at the time of the event (history is immutable).
 
 ### FR6: Team member management
-
 - Simple managed list of names used by the "who moved it" picker. Add/remove names in settings.
 
 ### FR7: Client status sharing
-
 - **Copy Status Summary:** one button on the project detail view generates a clean text block (client name, product, current stage in plain language, last update date) and copies it to clipboard, ready to paste into WhatsApp.
 - **Send on WhatsApp (wa.me):** a button next to Copy Status Summary opens a WhatsApp click-to-chat link with the client's number and the status summary pre-filled: `https://wa.me/{number}?text={encoded summary}`. This is a plain URL, not an API; no key, no cost, no auto-send. A human always reviews the message in WhatsApp before sending, which matches the safe-send protocol. Requires the contact number stored in international format (91XXXXXXXXXX, no + or spaces); the form normalizes input to this format. If no contact number is saved, the button is hidden and only Copy is offered.
 - **Print view:** a print-friendly rendering of the project status via a print stylesheet and `window.print()`.
 - **Business rule:** neither output includes the committed delivery date by default. It appears only if deliberately toggled on for that share. Written date commitments to frustrated clients are high-risk and must be a conscious choice, never a default.
 
 ### FR8: Persistence and backup
-
 - All data persists in `localStorage` under a single versioned key.
 - **Export:** download all data as a JSON file.
 - **Import:** load a JSON file, replacing current data after an explicit confirmation warning.
@@ -174,7 +166,7 @@ Displayed in this exact order:
 5. Refreshing the browser loses nothing.
 6. Search narrows the dashboard live as you type a client name.
 7. Copy Status Summary places a correctly formatted message on the clipboard, excluding the delivery date unless toggled.
-   7a. Send on WhatsApp opens a wa.me link with the correct number and URL-encoded summary; the button is hidden when no contact number is stored.
+7a. Send on WhatsApp opens a wa.me link with the correct number and URL-encoded summary; the button is hidden when no contact number is stored.
 8. Renaming a stage updates the dashboard immediately; prior history entries are unchanged.
 9. Export then import on a clean browser reproduces the full dataset.
 10. The live GitHub Pages URL loads and all of the above works there, not just locally.
@@ -202,8 +194,9 @@ Displayed in this exact order:
       "clientName": "string (required)",
       "contact": "string",
       "projectType": "string",
-      "productNeeded": "string",
-      "estimatedValue": "number",
+      "items": [
+        { "id": "uuid", "name": "Wardrobe", "specs": "7ft x 4ft, walnut veneer, matte PU", "value": 180000 }
+      ],
       "expectedDelivery": "ISO date (internal)",
       "stageId": "stg_x",
       "status": "active | lost | dispatched",
@@ -218,7 +211,9 @@ Displayed in this exact order:
           "reason": "string (required for moved_back and lost)"
         }
       ],
-      "notes": [{ "text": "string", "timestamp": "ISO datetime" }]
+      "notes": [
+        { "text": "string", "timestamp": "ISO datetime" }
+      ]
     }
   ]
 }

@@ -1,13 +1,13 @@
 /* ============================================================
    app.js - rendering and event handling.
-   Step 2: stage-grouped dashboard + add-project form.
-   The app is a tiny state machine: currentView decides what
-   render() draws inside <main id="app">.
+   Step 3: project detail view + multi-item projects.
+   Views: dashboard | add | detail (detail needs a project id).
    ============================================================ */
 
 const appEl = document.getElementById("app");
 let db = loadData();
-let currentView = "dashboard"; // "dashboard" | "add"  (step 3 adds "detail")
+let currentView = "dashboard";
+let currentProjectId = null;
 
 /* ---------- tiny helpers ---------- */
 
@@ -29,9 +29,20 @@ function formatDate(iso) {
   });
 }
 
-/* ---------- veneer strip (signature element) ----------
-   A segmented bar, one segment per stage, filled up to the
-   project's current position. Reads like plywood layers. */
+function formatDateTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit"
+  });
+}
+
+function formatMoney(n) {
+  if (!n) return "Rs 0";
+  return "Rs " + Number(n).toLocaleString("en-IN");
+}
+
+/* ---------- veneer strip (signature element) ---------- */
 function veneerStrip(project) {
   const ordered = getStagesInOrder(db);
   const idx = ordered.findIndex(s => s.id === project.stageId);
@@ -45,15 +56,27 @@ function veneerStrip(project) {
 }
 
 /* ---------- project card ---------- */
+function itemsSummary(p) {
+  const items = p.items || [];
+  if (items.length === 0) return "";
+  const names = items.slice(0, 2).map(it => escapeHtml(it.name)).join(", ");
+  const more = items.length > 2 ? ` +${items.length - 2} more` : "";
+  return `${names}${more}`;
+}
+
 function projectCard(p) {
   const stage = getStageById(db, p.stageId);
+  const total = projectTotal(p);
   return `
     <article class="project-card" data-id="${p.id}">
       <div class="card-top">
         <span class="client">${escapeHtml(p.clientName)}</span>
         <span class="chip">${escapeHtml(stage ? stage.name : "?")}</span>
       </div>
-      ${p.productNeeded ? `<p class="product muted">${escapeHtml(p.productNeeded)}</p>` : ""}
+      <div class="card-mid">
+        <p class="product muted">${itemsSummary(p)}</p>
+        ${total ? `<span class="total">${formatMoney(total)}</span>` : ""}
+      </div>
       ${veneerStrip(p)}
     </article>
   `;
@@ -80,7 +103,7 @@ function renderDashboard() {
 
   const groups = ordered.map(stage => {
     const inStage = active.filter(p => p.stageId === stage.id);
-    if (inStage.length === 0) return ""; // hide empty stages to keep the scan tight
+    if (inStage.length === 0) return "";
     return `
       <section class="stage-group" data-phase="${stage.phase}">
         <h2 class="stage-head">
@@ -112,6 +135,20 @@ function collapsedSection(title, projects) {
 }
 
 /* ---------- add-project view ---------- */
+
+/* One editable item row. Rows are plain DOM; on save we read
+   whatever rows exist. */
+function itemRowHtml() {
+  return `
+    <div class="item-row">
+      <input type="text" class="it-name" placeholder="Item (Wardrobe, Door with frame...)">
+      <input type="text" class="it-specs" placeholder="Specifications (size, material, finish...)">
+      <input type="number" class="it-value" placeholder="Value (Rs)" min="0">
+      <button type="button" class="btn ghost it-remove" title="Remove item">&times;</button>
+    </div>
+  `;
+}
+
 function renderAddForm() {
   const ordered = getStagesInOrder(db);
   const personOptions = db.team.map(name =>
@@ -131,12 +168,6 @@ function renderAddForm() {
         <label>Project type
           <input id="f-type" type="text" placeholder="Residential, Office, Retail...">
         </label>
-        <label>Product needed
-          <input id="f-product" type="text" placeholder="Wardrobe, modular kitchen, wall panels...">
-        </label>
-        <label>Estimated value (Rs)
-          <input id="f-value" type="number" min="0">
-        </label>
         <label>Expected delivery <span class="tag-internal">internal</span>
           <input id="f-delivery" type="date">
         </label>
@@ -150,10 +181,19 @@ function renderAddForm() {
         <label>Added by
           <select id="f-person">${personOptions}</select>
         </label>
-        <label class="span2">First note (optional)
-          <textarea id="f-note" rows="2"></textarea>
-        </label>
       </div>
+
+      <h2 class="section-head">Items</h2>
+      <div id="item-rows">${itemRowHtml()}</div>
+      <div class="items-footer">
+        <button type="button" class="btn ghost" id="add-item-row">+ Add another item</button>
+        <span class="items-total">Total: <strong id="items-total-val">Rs 0</strong></span>
+      </div>
+
+      <label class="note-label">First note (optional)
+        <textarea id="f-note" rows="2"></textarea>
+      </label>
+
       <p id="form-error" class="form-error" hidden></p>
       <div class="form-actions">
         <button class="btn ghost" id="f-cancel">Cancel</button>
@@ -162,8 +202,43 @@ function renderAddForm() {
     </section>
   `;
 
+  const rowsEl = document.getElementById("item-rows");
+
+  document.getElementById("add-item-row").addEventListener("click", () => {
+    rowsEl.insertAdjacentHTML("beforeend", itemRowHtml());
+  });
+
+  // One listener on the container handles every row, present or future.
+  rowsEl.addEventListener("click", e => {
+    if (e.target.classList.contains("it-remove")) {
+      e.target.closest(".item-row").remove();
+      updateItemsTotal();
+    }
+  });
+  rowsEl.addEventListener("input", e => {
+    if (e.target.classList.contains("it-value")) updateItemsTotal();
+  });
+
   document.getElementById("f-cancel").addEventListener("click", () => go("dashboard"));
   document.getElementById("f-save").addEventListener("click", saveNewProject);
+}
+
+function updateItemsTotal() {
+  const values = [...document.querySelectorAll(".it-value")]
+    .map(inp => Number(inp.value) || 0);
+  const total = values.reduce((a, b) => a + b, 0);
+  document.getElementById("items-total-val").textContent = formatMoney(total);
+}
+
+function readItemRows() {
+  return [...document.querySelectorAll(".item-row")]
+    .map(row => ({
+      id: crypto.randomUUID(),
+      name: row.querySelector(".it-name").value.trim(),
+      specs: row.querySelector(".it-specs").value.trim(),
+      value: Number(row.querySelector(".it-value").value) || 0
+    }))
+    .filter(it => it.name); // ignore blank rows
 }
 
 function saveNewProject() {
@@ -181,8 +256,7 @@ function saveNewProject() {
     clientName: clientName,
     contact: document.getElementById("f-contact").value,
     projectType: document.getElementById("f-type").value,
-    productNeeded: document.getElementById("f-product").value,
-    estimatedValue: document.getElementById("f-value").value,
+    items: readItemRows(),
     expectedDelivery: document.getElementById("f-delivery").value || null,
     stageId: document.getElementById("f-stage").value,
     person: person,
@@ -192,15 +266,113 @@ function saveNewProject() {
   go("dashboard");
 }
 
+/* ---------- detail view ----------
+   Order mandated by PRD FR3: basic details, delivery date
+   (internal), stage history, notes. */
+function renderDetail() {
+  const p = getProjectById(db, currentProjectId);
+  if (!p) { go("dashboard"); return; }
+
+  const stage = getStageById(db, p.stageId);
+  const total = projectTotal(p);
+
+  const itemRows = (p.items || []).map(it => `
+    <tr>
+      <td>${escapeHtml(it.name)}</td>
+      <td class="muted">${escapeHtml(it.specs)}</td>
+      <td class="num">${formatMoney(it.value)}</td>
+    </tr>
+  `).join("");
+
+  const historyRows = [...p.history].reverse().map(h => `
+    <li class="hist-item" data-action="${h.action}">
+      <span class="hist-action">${historyLabel(h)}</span>
+      <span class="hist-meta muted">
+        ${formatDateTime(h.timestamp)}${h.person ? " · " + escapeHtml(h.person) : ""}
+      </span>
+      ${h.reason ? `<span class="hist-reason">"${escapeHtml(h.reason)}"</span>` : ""}
+    </li>
+  `).join("");
+
+  const noteItems = [...p.notes].reverse().map(n => `
+    <li class="note-item">
+      <span>${escapeHtml(n.text)}</span>
+      <span class="muted small">${formatDateTime(n.timestamp)}</span>
+    </li>
+  `).join("");
+
+  appEl.innerHTML = `
+    <button class="btn ghost back-btn" id="back-btn">&larr; Dashboard</button>
+
+    <section class="card detail-card">
+      <div class="detail-head">
+        <h1>${escapeHtml(p.clientName)}</h1>
+        <span class="chip">${escapeHtml(stage ? stage.name : "?")}</span>
+      </div>
+      ${veneerStrip(p)}
+
+      <dl class="detail-facts">
+        ${p.projectType ? `<div><dt>Project type</dt><dd>${escapeHtml(p.projectType)}</dd></div>` : ""}
+        ${p.contact ? `<div><dt>Contact</dt><dd>${escapeHtml(p.contact)}</dd></div>` : ""}
+        <div><dt>Created</dt><dd>${formatDate(p.createdAt)}</dd></div>
+      </dl>
+
+      ${(p.items || []).length ? `
+        <h2 class="section-head">Items</h2>
+        <table class="items-table">
+          <thead><tr><th>Item</th><th>Specifications</th><th class="num">Value</th></tr></thead>
+          <tbody>${itemRows}</tbody>
+          <tfoot><tr><td colspan="2">Total</td><td class="num"><strong>${formatMoney(total)}</strong></td></tr></tfoot>
+        </table>
+      ` : ""}
+
+      ${p.expectedDelivery ? `
+        <p class="delivery">
+          <span class="tag-internal">internal</span>
+          Expected delivery: <strong>${formatDate(p.expectedDelivery)}</strong>
+        </p>
+      ` : ""}
+
+      <h2 class="section-head">Stage history</h2>
+      <ul class="history">${historyRows}</ul>
+
+      <h2 class="section-head">Notes</h2>
+      <div class="note-add">
+        <input id="note-input" type="text" placeholder="Add a note...">
+        <button class="btn ghost" id="note-save">Add</button>
+      </div>
+      <ul class="notes">${noteItems || `<li class="muted">No notes yet.</li>`}</ul>
+    </section>
+  `;
+
+  document.getElementById("back-btn").addEventListener("click", () => go("dashboard"));
+  document.getElementById("note-save").addEventListener("click", () => {
+    const input = document.getElementById("note-input");
+    if (!input.value.trim()) return;
+    addNote(db, p.id, input.value);
+    renderDetail(); // re-draw with the new note
+  });
+}
+
+function historyLabel(h) {
+  if (h.action === "created") return `Created in ${escapeHtml(h.toStage)}`;
+  if (h.action === "advanced") return `Advanced: ${escapeHtml(h.fromStage)} &rarr; ${escapeHtml(h.toStage)}`;
+  if (h.action === "moved_back") return `Moved back: ${escapeHtml(h.fromStage)} &rarr; ${escapeHtml(h.toStage)}`;
+  if (h.action === "lost") return `Marked as Lost (was ${escapeHtml(h.fromStage)})`;
+  return escapeHtml(h.action);
+}
+
 /* ---------- routing ---------- */
-function go(view) {
+function go(view, projectId) {
   currentView = view;
+  if (projectId !== undefined) currentProjectId = projectId;
   render();
 }
 
 function render() {
   if (!storageAvailable()) showPersistWarning();
   if (currentView === "add") renderAddForm();
+  else if (currentView === "detail") renderDetail();
   else renderDashboard();
 }
 
@@ -211,6 +383,12 @@ function showPersistWarning() {
   b.textContent = "This browser is blocking storage. Data will not survive a refresh.";
   document.body.insertBefore(b, appEl);
 }
+
+/* Card clicks: one delegated listener survives every re-render. */
+appEl.addEventListener("click", e => {
+  const card = e.target.closest(".project-card");
+  if (card) go("detail", card.dataset.id);
+});
 
 /* topbar navigation */
 document.getElementById("nav-dashboard").addEventListener("click", () => go("dashboard"));

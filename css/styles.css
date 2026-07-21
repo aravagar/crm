@@ -292,3 +292,165 @@ h1 {
   .form-grid { grid-template-columns: 1fr; }
   .cards { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Step 3 additions: item rows, detail view, history, notes.
+   ============================================================ */
+
+.section-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  margin: 20px 0 8px;
+  color: var(--walnut);
+}
+
+/* ---------- item rows in the add form ---------- */
+.item-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.6fr 0.8fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.item-row input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.item-row input:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+.it-remove { padding: 4px 10px; font-size: 16px; line-height: 1; }
+
+.items-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.items-total { font-size: 14px; }
+
+.note-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 16px;
+}
+.note-label textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.note-label textarea:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+/* ---------- card total ---------- */
+.card-mid {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.card-mid .total { font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+/* ---------- detail view ---------- */
+.back-btn { margin-bottom: 12px; }
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.detail-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 16px;
+}
+.detail-facts dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.detail-facts dd { font-weight: 500; }
+
+/* ---------- items table ---------- */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.items-table th, .items-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.items-table th {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.items-table .num { text-align: right; white-space: nowrap; }
+.items-table tfoot td { border-bottom: none; padding-top: 10px; }
+
+.delivery { margin-top: 14px; }
+
+/* ---------- history ---------- */
+.history { list-style: none; }
+.hist-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 8px 14px;
+  border-left: 3px solid var(--line);
+  margin-bottom: 4px;
+}
+.hist-item[data-action="advanced"] { border-left-color: var(--advance); }
+.hist-item[data-action="moved_back"] { border-left-color: var(--won); }
+.hist-item[data-action="lost"] { border-left-color: var(--lost); }
+.hist-action { font-weight: 600; }
+.hist-meta { font-size: 12px; }
+.hist-reason { font-size: 13px; font-style: italic; color: var(--muted); }
+
+/* ---------- notes ---------- */
+.note-add { display: flex; gap: 8px; margin-bottom: 10px; }
+.note-add input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.note-add input:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+.notes { list-style: none; }
+.note-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 600px) {
+  .item-row { grid-template-columns: 1fr 1fr; }
+  .item-row .it-specs { grid-column: 1 / -1; }
+  .note-item { flex-direction: column; gap: 2px; }
+}
