@@ -406,6 +406,23 @@ function renderDetail() {
       ${veneerStrip(p)}
       ${actionsHtml}
 
+      <div class="share-box">
+        <div class="share-head">
+          <h2 class="section-head" style="margin:0;">Share status</h2>
+          ${p.expectedDelivery ? `
+            <label class="date-toggle">
+              <input type="checkbox" id="share-date"> include delivery date
+            </label>` : ""}
+        </div>
+        <div class="share-actions">
+          ${p.contact ? `
+            <button class="btn advance" id="share-wa">Send on WhatsApp</button>` : `
+            <span class="muted small">Add a contact number to enable WhatsApp send.</span>`}
+          <button class="btn ghost" id="share-copy">Copy status summary</button>
+        </div>
+        <p id="share-feedback" class="share-feedback" hidden></p>
+      </div>
+
       <dl class="detail-facts">
         ${p.projectType ? `<div><dt>Project type</dt><dd>${escapeHtml(p.projectType)}</dd></div>` : ""}
         ${p.contact ? `<div><dt>Contact</dt><dd>${escapeHtml(p.contact)}</dd></div>` : ""}
@@ -441,6 +458,41 @@ function renderDetail() {
   `;
 
   document.getElementById("back-btn").addEventListener("click", () => go("dashboard"));
+
+  /* ---- status sharing (PRD: FR7) ---- */
+  const copyBtn = document.getElementById("share-copy");
+  const waBtn = document.getElementById("share-wa");
+  const feedback = document.getElementById("share-feedback");
+
+  function includeDate() {
+    const box = document.getElementById("share-date");
+    return box ? box.checked : false;
+  }
+  function showFeedback(msg) {
+    feedback.textContent = msg;
+    feedback.hidden = false;
+  }
+
+  if (copyBtn) copyBtn.addEventListener("click", async () => {
+    const text = buildStatusSummary(p, includeDate());
+    try {
+      await navigator.clipboard.writeText(text);
+      showFeedback("Summary copied. Paste it into WhatsApp.");
+    } catch (err) {
+      // Clipboard API can fail on some browsers/permissions.
+      // Fall back to showing the text for manual copy.
+      showFeedback("Copy not allowed here. Select and copy:\n\n" + text);
+    }
+  });
+
+  if (waBtn) waBtn.addEventListener("click", () => {
+    const text = buildStatusSummary(p, includeDate());
+    // wa.me opens WhatsApp with the message pre-filled. It never
+    // auto-sends; a human reviews and taps send (safe-send).
+    const url = "https://wa.me/" + p.contact + "?text=" + encodeURIComponent(text);
+    window.open(url, "_blank");
+  });
+
   document.getElementById("note-save").addEventListener("click", () => {
     const input = document.getElementById("note-input");
     if (!input.value.trim()) return;
@@ -495,6 +547,32 @@ function openReasonBox(title, onConfirm) {
     if (!input.value.trim()) { err.hidden = false; return; }
     onConfirm(input.value.trim());
   };
+}
+
+/* ---------- status sharing (PRD: FR7) ----------
+   Plain-language summary for a client. The committed delivery
+   date is EXCLUDED by default and only added when the user
+   ticks the include-date box (business rule: written date
+   commitments to frustrated clients are high-risk). */
+function buildStatusSummary(project, includeDate) {
+  const stage = getStageById(db, project.stageId);
+  const lines = [];
+  lines.push("Hi, here is the latest status on your Studioforma order.");
+  lines.push("");
+  lines.push("Client: " + project.clientName);
+
+  const items = (project.items || []).map(it => it.name).filter(Boolean);
+  if (items.length) lines.push("Items: " + items.join(", "));
+
+  lines.push("Current stage: " + (stage ? stage.name : "-"));
+
+  if (includeDate && project.expectedDelivery) {
+    lines.push("Expected delivery: " + formatDate(project.expectedDelivery));
+  }
+
+  lines.push("");
+  lines.push("- Team Studioforma");
+  return lines.join("\n");
 }
 
 function historyLabel(h) {

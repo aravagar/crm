@@ -558,3 +558,45 @@ h1 {
   .dash-controls { flex-direction: column; }
   #dash-type { max-width: 100%; }
 }
+
+/* ============================================================
+   Step 6 additions: share status box.
+   ============================================================ */
+
+.share-box {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-toggle {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.share-feedback {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--advance);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 600px) {
+  .share-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .share-actions .btn { flex: 1; }
+}
