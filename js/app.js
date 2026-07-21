@@ -483,6 +483,7 @@ function renderDetail() {
             <button class="btn advance" id="share-wa">Send on WhatsApp</button>` : `
             <span class="muted small">Add a contact number to enable WhatsApp send.</span>`}
           <button class="btn ghost" id="share-copy">Copy status summary</button>
+          <button class="btn ghost" id="share-print">Print status</button>
         </div>
         <p id="share-feedback" class="share-feedback" hidden></p>
       </div>
@@ -559,6 +560,12 @@ function renderDetail() {
     const text = buildStatusSummary(p, includeDate(), includeTimeline());
     const url = "https://wa.me/" + p.contact + "?text=" + encodeURIComponent(text);
     window.open(url, "_blank");
+  });
+
+  const printBtn = document.getElementById("share-print");
+  if (printBtn) printBtn.addEventListener("click", () => {
+    buildPrintSheet(p, includeDate(), includeTimeline());
+    window.print();
   });
 
   document.getElementById("note-save").addEventListener("click", () => {
@@ -861,6 +868,66 @@ function handleRemoveStage(stageId) {
   document.getElementById("reassign-cancel").addEventListener("click", () => {
     document.getElementById("reassign-box").remove();
   });
+}
+
+/* ---------- print sheet (PRD: FR7) ----------
+   Builds a clean, client-facing status page into a hidden
+   container. Only this container is visible when printing
+   (see the @media print rules in styles.css). Same sharing
+   rules apply: delivery date and timeline are opt-in. */
+function buildPrintSheet(project, includeDate, includeTimeline) {
+  let host = document.getElementById("print-area");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "print-area";
+    document.body.appendChild(host);
+  }
+
+  const stage = getStageById(db, project.stageId);
+  const total = projectTotal(project);
+
+  const itemRows = (project.items || []).filter(it => it.name).map(it => `
+    <tr>
+      <td>${escapeHtml(it.name)}</td>
+      <td>${escapeHtml(it.specs)}</td>
+      <td class="num">${Number(it.qty) || 1}</td>
+      <td class="num">${formatMoney(it.unitPrice)}</td>
+      <td class="num">${formatMoney(lineTotal(it))}</td>
+    </tr>
+  `).join("");
+
+  const timelineRows = includeTimeline ? project.history.map(h => `
+    <li>${escapeHtml(timelineLine(h))} <span class="p-muted">(${formatDate(h.timestamp)})</span></li>
+  `).join("") : "";
+
+  host.innerHTML = `
+    <div class="print-head">
+      <div class="print-brand">Studioforma</div>
+      <div class="print-date">Status as of ${formatDate(new Date().toISOString())}</div>
+    </div>
+    <h1 class="print-client">${escapeHtml(project.clientName)}</h1>
+    <p class="print-stage">Current stage: <strong>${escapeHtml(stage ? stage.name : "-")}</strong></p>
+    ${project.projectType ? `<p class="p-muted">Project type: ${escapeHtml(project.projectType)}</p>` : ""}
+
+    ${itemRows ? `
+      <table class="print-table">
+        <thead><tr><th>Item</th><th>Specifications</th><th class="num">Qty</th><th class="num">Price/unit</th><th class="num">Line total</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+        <tfoot><tr><td colspan="4">Total</td><td class="num"><strong>${formatMoney(total)}</strong></td></tr></tfoot>
+      </table>
+    ` : ""}
+
+    ${includeDate && project.expectedDelivery ? `
+      <p class="print-delivery">Expected delivery: <strong>${formatDate(project.expectedDelivery)}</strong></p>
+    ` : ""}
+
+    ${timelineRows ? `
+      <h2 class="print-h2">Progress</h2>
+      <ul class="print-timeline">${timelineRows}</ul>
+    ` : ""}
+
+    <p class="print-foot">Studioforma · manufacturer-direct furniture</p>
+  `;
 }
 
 /* ---------- routing ---------- */

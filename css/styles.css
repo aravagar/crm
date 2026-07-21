@@ -771,3 +771,92 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 6px;
 }
+
+/* ============================================================
+   Step 9: print sheet.
+   On screen the print area is hidden. When printing, everything
+   else is hidden and only #print-area shows, so the client
+   gets a clean status page with no app chrome.
+   ============================================================ */
+
+#print-area { display: none; }
+
+@media print {
+  /* hide the live app entirely */
+  .topbar, main#app, .banner { display: none !important; }
+
+  /* show only the print sheet */
+  #print-area {
+    display: block !important;
+    font-family: var(--font-body);
+    color: #000;
+    padding: 0;
+    max-width: 100%;
+  }
+
+  body { background: #fff; }
+
+  .print-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  .print-brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+  }
+  .print-date { font-size: 12px; color: #444; }
+
+  .print-client {
+    font-family: var(--font-display);
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+  .print-stage { font-size: 15px; margin-bottom: 4px; }
+  .p-muted { color: #555; font-size: 13px; }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .print-table th, .print-table td {
+    text-align: left;
+    padding: 7px 8px;
+    border-bottom: 1px solid #ccc;
+  }
+  .print-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+  }
+  .print-table .num { text-align: right; }
+  .print-table tfoot td { border-bottom: none; border-top: 2px solid #000; padding-top: 8px; }
+
+  .print-delivery { margin: 10px 0; font-size: 14px; }
+
+  .print-h2 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    margin: 18px 0 6px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 3px;
+  }
+  .print-timeline { list-style: none; padding: 0; font-size: 13px; }
+  .print-timeline li { padding: 3px 0; }
+
+  .print-foot {
+    margin-top: 28px;
+    padding-top: 8px;
+    border-top: 1px solid #ccc;
+    font-size: 11px;
+    color: #777;
+  }
+}
