@@ -1,9 +1,9 @@
 /* ============================================================
-   styles.css - design tokens + base + step 1 boot screen.
+   styles.css - design tokens + base + dashboard + form.
    Direction: paper-white workshop ledger. Walnut is the brand
    accent (the product is wood). Space Grotesk for headings,
-   IBM Plex Sans for everything else. One signature element
-   arrives in step 2: the segmented veneer-strip progress bar.
+   IBM Plex Sans for everything else. Signature element: the
+   veneer strip, a segmented per-stage progress bar on each card.
    ============================================================ */
 
 :root {
@@ -43,6 +43,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   padding: 14px 20px;
   border-bottom: 2px solid var(--walnut);
   background: var(--card);
@@ -64,6 +66,24 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
+
+.topbar-actions { display: flex; gap: 8px; }
+
+/* ---------- buttons ---------- */
+.btn {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.btn:focus-visible { outline: 2px solid var(--walnut); outline-offset: 2px; }
+.btn.primary { background: var(--walnut); color: #fff; }
+.btn.primary:hover { background: #55341e; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { background: var(--walnut-soft); }
 
 /* ---------- layout ---------- */
 main#app {
@@ -93,7 +113,7 @@ h1 {
 .banner {
   border-radius: var(--radius);
   padding: 10px 14px;
-  margin-bottom: var(--gap);
+  margin: var(--gap);
   font-weight: 500;
 }
 .banner.warn {
@@ -102,23 +122,173 @@ h1 {
   border: 1px solid var(--lost);
 }
 
-/* ---------- step 1 boot screen ---------- */
-.boot .stage-list {
-  margin: 16px 0;
-  padding-left: 24px;
-  columns: 2;
-  column-gap: 32px;
+/* ---------- dashboard ---------- */
+.dash-summary { margin-bottom: var(--gap); font-size: 13px; }
+
+.stage-group { margin-bottom: 22px; }
+
+.stage-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+.stage-group[data-phase="won"] .stage-head { color: var(--won); }
+.stage-group[data-phase="production"] .stage-head { color: var(--walnut); }
+
+.count {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--walnut-soft);
+  color: var(--walnut);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
-.boot .stage-list li {
-  padding: 3px 0;
-  break-inside: avoid;
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
 }
 
-.boot .stage-list li[data-phase="won"] { color: var(--won); font-weight: 600; }
-.boot .stage-list li[data-phase="production"] { color: var(--walnut); }
-.boot .stage-list li[data-phase="terminal"] { font-weight: 600; }
+.project-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.project-card:hover { border-color: var(--walnut); }
 
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.client { font-weight: 600; }
+
+.chip {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--walnut-soft);
+  color: var(--walnut);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.product { font-size: 13px; margin-top: 2px; }
+
+/* ---------- veneer strip (signature) ---------- */
+.veneer {
+  display: flex;
+  gap: 2px;
+  margin-top: 10px;
+}
+.veneer .seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.veneer .seg.filled { background: var(--walnut); }
+.veneer .seg.filled.lost { background: var(--lost); }
+
+/* ---------- terminal sections (Lost / Dispatched) ---------- */
+.terminal-section {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.terminal-section summary {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ---------- add-project form ---------- */
+.form-card { max-width: 640px; margin: 0 auto; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form-grid .span2 { grid-column: 1 / -1; }
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  outline: 2px solid var(--walnut);
+  outline-offset: 0;
+}
+
+.tag-internal {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--won);
+  border: 1px solid var(--won);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+
+.form-error {
+  color: var(--lost);
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------- empty state ---------- */
+.empty { text-align: center; padding: 48px 20px; }
+.empty .btn { margin-top: 12px; }
+
+/* ---------- mobile ---------- */
 @media (max-width: 600px) {
-  .boot .stage-list { columns: 1; }
+  .form-grid { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: 1fr; }
 }

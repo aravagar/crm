@@ -151,6 +151,13 @@ function getProjectById(data, id) {
   return data.projects.find(p => p.id === id) || null;
 }
 
+/* Remember who last made a change, so the person picker
+   defaults to them next time (PRD: FR4). */
+function setLastUsedPerson(data, name) {
+  data.lastUsedPerson = name;
+  saveData(data);
+}
+
 /* ---------- Phone normalization ----------
    wa.me needs international format: 91XXXXXXXXXX, no + or
    spaces (PRD: FR7). We store it that way from the start. */
