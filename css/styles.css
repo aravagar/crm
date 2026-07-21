@@ -1,0 +1,124 @@
+/* ============================================================
+   styles.css - design tokens + base + step 1 boot screen.
+   Direction: paper-white workshop ledger. Walnut is the brand
+   accent (the product is wood). Space Grotesk for headings,
+   IBM Plex Sans for everything else. One signature element
+   arrives in step 2: the segmented veneer-strip progress bar.
+   ============================================================ */
+
+:root {
+  /* palette */
+  --paper: #faf9f7;
+  --card: #ffffff;
+  --ink: #1c1a17;
+  --muted: #6e675e;
+  --line: #e4e0da;
+  --walnut: #6b4226;      /* brand accent */
+  --walnut-soft: #f0e7df; /* accent wash for chips/hovers */
+  --advance: #2e7d4f;     /* forward action */
+  --lost: #a63d2f;        /* lost / destructive */
+  --won: #b8860b;         /* the Advance Recd boundary */
+
+  /* type */
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+
+  /* rhythm */
+  --radius: 10px;
+  --gap: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 2px solid var(--walnut);
+  background: var(--card);
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.brand-sub {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--walnut);
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* ---------- layout ---------- */
+main#app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--gap);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+/* ---------- banners ---------- */
+.banner {
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: var(--gap);
+  font-weight: 500;
+}
+.banner.warn {
+  background: #fbeae7;
+  color: var(--lost);
+  border: 1px solid var(--lost);
+}
+
+/* ---------- step 1 boot screen ---------- */
+.boot .stage-list {
+  margin: 16px 0;
+  padding-left: 24px;
+  columns: 2;
+  column-gap: 32px;
+}
+
+.boot .stage-list li {
+  padding: 3px 0;
+  break-inside: avoid;
+}
+
+.boot .stage-list li[data-phase="won"] { color: var(--won); font-weight: 600; }
+.boot .stage-list li[data-phase="production"] { color: var(--walnut); }
+.boot .stage-list li[data-phase="terminal"] { font-weight: 600; }
+
+@media (max-width: 600px) {
+  .boot .stage-list { columns: 1; }
+}
