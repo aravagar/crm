@@ -600,3 +600,53 @@ h1 {
   .share-head { flex-direction: column; align-items: flex-start; gap: 6px; }
   .share-actions .btn { flex: 1; }
 }
+
+/* ============================================================
+   Step 8 additions: qty/price item rows, edit button, toggles.
+   ============================================================ */
+
+/* item rows now have 6 columns: name, specs, qty, price, line, remove */
+.item-row {
+  grid-template-columns: 1.1fr 1.5fr 0.5fr 0.8fr 0.8fr auto;
+  align-items: center;
+}
+
+.item-row.item-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.item-row.item-head span { padding: 0 2px; }
+
+.it-line {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.detail-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+@media (max-width: 600px) {
+  /* stack item fields into a labeled block on narrow screens */
+  .item-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .item-row.item-head { display: none; }
+  .item-row .it-name { grid-column: 1 / -1; }
+  .item-row .it-specs { grid-column: 1 / -1; }
+  .item-row .it-line { grid-column: 1 / -1; text-align: left; }
+}

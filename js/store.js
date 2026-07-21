@@ -46,12 +46,14 @@ function defaultData() {
 }
 
 /* ---------- Migration ----------
-   Early projects stored a single productNeeded + estimatedValue.
-   The model is now an items list (name, specs, value each).
-   This converts old projects once, on load, so nothing breaks. */
+   Model has evolved twice:
+   1) single productNeeded + estimatedValue  ->  items list
+   2) item.value (flat)  ->  item.qty + item.unitPrice
+   Both conversions run once on load so nothing breaks. */
 function migrate(data) {
   let changed = false;
   data.projects.forEach(p => {
+    // step 3 model: introduce items list
     if (!Array.isArray(p.items)) {
       p.items = [];
       if (p.productNeeded || p.estimatedValue) {
@@ -59,13 +61,23 @@ function migrate(data) {
           id: crypto.randomUUID(),
           name: p.productNeeded || "Item",
           specs: "",
-          value: p.estimatedValue || 0
+          qty: 1,
+          unitPrice: p.estimatedValue || 0
         });
       }
       delete p.productNeeded;
       delete p.estimatedValue;
       changed = true;
     }
+    // step 8 model: flat value -> qty + unitPrice
+    p.items.forEach(it => {
+      if (it.unitPrice === undefined) {
+        it.qty = it.qty || 1;
+        it.unitPrice = it.value || 0;
+        delete it.value;
+        changed = true;
+      }
+    });
   });
   if (changed) saveData(data);
   return data;
@@ -176,9 +188,29 @@ function getProjectById(data, id) {
   return data.projects.find(p => p.id === id) || null;
 }
 
-/* Sum of item values. Null-safe so an empty project totals 0. */
+/* Line total for one item = quantity x unit price. */
+function lineTotal(item) {
+  return (Number(item.qty) || 0) * (Number(item.unitPrice) || 0);
+}
+
+/* Project total = sum of all line totals. Null-safe. */
 function projectTotal(project) {
-  return (project.items || []).reduce((sum, it) => sum + (Number(it.value) || 0), 0);
+  return (project.items || []).reduce((sum, it) => sum + lineTotal(it), 0);
+}
+
+/* Edit an existing project's editable fields (PRD: edit mode).
+   Stage, status, history, notes and id are NOT touched here;
+   those change only through their own dedicated actions. */
+function updateProject(data, projectId, fields) {
+  const p = getProjectById(data, projectId);
+  if (!p) return false;
+  p.clientName = fields.clientName.trim();
+  p.contact = normalizePhone(fields.contact || "");
+  p.projectType = (fields.projectType || "").trim();
+  p.items = fields.items || [];
+  p.expectedDelivery = fields.expectedDelivery || null;
+  saveData(data);
+  return true;
 }
 
 function addNote(data, projectId, text) {

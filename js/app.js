@@ -190,41 +190,56 @@ function collapsedSection(title, projects) {
 
 /* ---------- add-project view ---------- */
 
-/* One editable item row. Rows are plain DOM; on save we read
-   whatever rows exist. */
-function itemRowHtml() {
+/* One editable item row. Optionally prefilled (edit mode).
+   Columns: name, specs, qty, unit price, line total, remove. */
+function itemRowHtml(item) {
+  const it = item || { name: "", specs: "", qty: 1, unitPrice: "" };
   return `
     <div class="item-row">
-      <input type="text" class="it-name" placeholder="Item (Wardrobe, Door with frame...)">
-      <input type="text" class="it-specs" placeholder="Specifications (size, material, finish...)">
-      <input type="number" class="it-value" placeholder="Value (Rs)" min="0">
+      <input type="text" class="it-name" placeholder="Item (Wardrobe, Door with frame...)"
+        value="${escapeHtml(it.name)}">
+      <input type="text" class="it-specs" placeholder="Specifications (size, material, finish...)"
+        value="${escapeHtml(it.specs)}">
+      <input type="number" class="it-qty" placeholder="Qty" min="1" value="${it.qty || 1}">
+      <input type="number" class="it-price" placeholder="Price/unit" min="0"
+        value="${it.unitPrice === "" ? "" : it.unitPrice}">
+      <span class="it-line">Rs 0</span>
       <button type="button" class="btn ghost it-remove" title="Remove item">&times;</button>
     </div>
   `;
 }
 
-function renderAddForm() {
+/* Shared form for both add and edit. When editProject is passed,
+   fields are prefilled and Save updates instead of creating. */
+function renderProjectForm(editProject) {
   const ordered = getStagesInOrder(db);
+  const isEdit = !!editProject;
   const personOptions = db.team.map(name =>
     `<option ${name === db.lastUsedPerson ? "selected" : ""}>${escapeHtml(name)}</option>`
   ).join("");
 
+  const prefill = editProject || {};
+  const rowsHtml = (isEdit && prefill.items && prefill.items.length)
+    ? prefill.items.map(itemRowHtml).join("")
+    : itemRowHtml();
+
   appEl.innerHTML = `
     <section class="card form-card">
-      <h1>Add project</h1>
+      <h1>${isEdit ? "Edit project" : "Add project"}</h1>
       <div class="form-grid">
         <label>Client name *
-          <input id="f-client" type="text" autocomplete="off">
+          <input id="f-client" type="text" autocomplete="off" value="${escapeHtml(prefill.clientName || "")}">
         </label>
         <label>Contact number
-          <input id="f-contact" type="tel" placeholder="10-digit or 91XXXXXXXXXX">
+          <input id="f-contact" type="tel" placeholder="10-digit or 91XXXXXXXXXX" value="${escapeHtml(prefill.contact || "")}">
         </label>
         <label>Project type
-          <input id="f-type" type="text" placeholder="Residential, Office, Retail...">
+          <input id="f-type" type="text" placeholder="Residential, Office, Retail..." value="${escapeHtml(prefill.projectType || "")}">
         </label>
         <label>Expected delivery <span class="tag-internal">internal</span>
-          <input id="f-delivery" type="date">
+          <input id="f-delivery" type="date" value="${prefill.expectedDelivery || ""}">
         </label>
+        ${isEdit ? "" : `
         <label>Starting stage
           <select id="f-stage">
             ${ordered.map((s, i) =>
@@ -234,24 +249,28 @@ function renderAddForm() {
         </label>
         <label>Added by
           <select id="f-person">${personOptions}</select>
-        </label>
+        </label>`}
       </div>
 
       <h2 class="section-head">Items</h2>
-      <div id="item-rows">${itemRowHtml()}</div>
+      <div class="item-row item-head">
+        <span>Item</span><span>Specifications</span><span>Qty</span><span>Price/unit</span><span>Line total</span><span></span>
+      </div>
+      <div id="item-rows">${rowsHtml}</div>
       <div class="items-footer">
         <button type="button" class="btn ghost" id="add-item-row">+ Add another item</button>
         <span class="items-total">Total: <strong id="items-total-val">Rs 0</strong></span>
       </div>
 
+      ${isEdit ? "" : `
       <label class="note-label">First note (optional)
         <textarea id="f-note" rows="2"></textarea>
-      </label>
+      </label>`}
 
       <p id="form-error" class="form-error" hidden></p>
       <div class="form-actions">
         <button class="btn ghost" id="f-cancel">Cancel</button>
-        <button class="btn primary" id="f-save">Save project</button>
+        <button class="btn primary" id="f-save">${isEdit ? "Save changes" : "Save project"}</button>
       </div>
     </section>
   `;
@@ -260,9 +279,9 @@ function renderAddForm() {
 
   document.getElementById("add-item-row").addEventListener("click", () => {
     rowsEl.insertAdjacentHTML("beforeend", itemRowHtml());
+    updateItemsTotal();
   });
 
-  // One listener on the container handles every row, present or future.
   rowsEl.addEventListener("click", e => {
     if (e.target.classList.contains("it-remove")) {
       e.target.closest(".item-row").remove();
@@ -270,27 +289,46 @@ function renderAddForm() {
     }
   });
   rowsEl.addEventListener("input", e => {
-    if (e.target.classList.contains("it-value")) updateItemsTotal();
+    if (e.target.classList.contains("it-qty") || e.target.classList.contains("it-price")) {
+      updateItemsTotal();
+    }
   });
 
-  document.getElementById("f-cancel").addEventListener("click", () => go("dashboard"));
-  document.getElementById("f-save").addEventListener("click", saveNewProject);
+  document.getElementById("f-cancel").addEventListener("click", () =>
+    isEdit ? go("detail", editProject.id) : go("dashboard"));
+  document.getElementById("f-save").addEventListener("click", () =>
+    isEdit ? saveEditedProject(editProject.id) : saveNewProject());
+
+  updateItemsTotal(); // fill line totals on load (matters for edit)
 }
 
+function renderAddForm() { renderProjectForm(null); }
+
+/* Recomputes every visible line total and the grand total. */
 function updateItemsTotal() {
-  const values = [...document.querySelectorAll(".it-value")]
-    .map(inp => Number(inp.value) || 0);
-  const total = values.reduce((a, b) => a + b, 0);
-  document.getElementById("items-total-val").textContent = formatMoney(total);
+  let grand = 0;
+  document.querySelectorAll(".item-row").forEach(row => {
+    const qtyEl = row.querySelector(".it-qty");
+    const priceEl = row.querySelector(".it-price");
+    const lineEl = row.querySelector(".it-line");
+    if (!qtyEl || !lineEl) return; // skip the header row
+    const line = (Number(qtyEl.value) || 0) * (Number(priceEl.value) || 0);
+    lineEl.textContent = formatMoney(line);
+    grand += line;
+  });
+  const totalEl = document.getElementById("items-total-val");
+  if (totalEl) totalEl.textContent = formatMoney(grand);
 }
 
 function readItemRows() {
   return [...document.querySelectorAll(".item-row")]
+    .filter(row => row.querySelector(".it-name")) // skip header row
     .map(row => ({
       id: crypto.randomUUID(),
       name: row.querySelector(".it-name").value.trim(),
       specs: row.querySelector(".it-specs").value.trim(),
-      value: Number(row.querySelector(".it-value").value) || 0
+      qty: Number(row.querySelector(".it-qty").value) || 1,
+      unitPrice: Number(row.querySelector(".it-price").value) || 0
     }))
     .filter(it => it.name); // ignore blank rows
 }
@@ -298,13 +336,11 @@ function readItemRows() {
 function saveNewProject() {
   const clientName = document.getElementById("f-client").value.trim();
   const errEl = document.getElementById("form-error");
-
   if (!clientName) {
     errEl.textContent = "Client name is required.";
     errEl.hidden = false;
     return;
   }
-
   const person = document.getElementById("f-person").value;
   createProject(db, {
     clientName: clientName,
@@ -318,6 +354,24 @@ function saveNewProject() {
   });
   setLastUsedPerson(db, person);
   go("dashboard");
+}
+
+function saveEditedProject(projectId) {
+  const clientName = document.getElementById("f-client").value.trim();
+  const errEl = document.getElementById("form-error");
+  if (!clientName) {
+    errEl.textContent = "Client name is required.";
+    errEl.hidden = false;
+    return;
+  }
+  updateProject(db, projectId, {
+    clientName: clientName,
+    contact: document.getElementById("f-contact").value,
+    projectType: document.getElementById("f-type").value,
+    items: readItemRows(),
+    expectedDelivery: document.getElementById("f-delivery").value || null
+  });
+  go("detail", projectId);
 }
 
 /* ---------- detail view ----------
@@ -334,7 +388,9 @@ function renderDetail() {
     <tr>
       <td>${escapeHtml(it.name)}</td>
       <td class="muted">${escapeHtml(it.specs)}</td>
-      <td class="num">${formatMoney(it.value)}</td>
+      <td class="num">${Number(it.qty) || 1}</td>
+      <td class="num">${formatMoney(it.unitPrice)}</td>
+      <td class="num">${formatMoney(lineTotal(it))}</td>
     </tr>
   `).join("");
 
@@ -401,7 +457,10 @@ function renderDetail() {
     <section class="card detail-card">
       <div class="detail-head">
         <h1>${escapeHtml(p.clientName)}</h1>
-        <span class="chip">${escapeHtml(stage ? stage.name : "?")}</span>
+        <div class="detail-head-right">
+          <span class="chip">${escapeHtml(stage ? stage.name : "?")}</span>
+          <button class="btn ghost" id="edit-btn">Edit</button>
+        </div>
       </div>
       ${veneerStrip(p)}
       ${actionsHtml}
@@ -409,10 +468,15 @@ function renderDetail() {
       <div class="share-box">
         <div class="share-head">
           <h2 class="section-head" style="margin:0;">Share status</h2>
-          ${p.expectedDelivery ? `
+          <div class="share-toggles">
+            ${p.expectedDelivery ? `
+              <label class="date-toggle">
+                <input type="checkbox" id="share-date"> include delivery date
+              </label>` : ""}
             <label class="date-toggle">
-              <input type="checkbox" id="share-date"> include delivery date
-            </label>` : ""}
+              <input type="checkbox" id="share-timeline"> include full timeline
+            </label>
+          </div>
         </div>
         <div class="share-actions">
           ${p.contact ? `
@@ -432,9 +496,9 @@ function renderDetail() {
       ${(p.items || []).length ? `
         <h2 class="section-head">Items</h2>
         <table class="items-table">
-          <thead><tr><th>Item</th><th>Specifications</th><th class="num">Value</th></tr></thead>
+          <thead><tr><th>Item</th><th>Specifications</th><th class="num">Qty</th><th class="num">Price/unit</th><th class="num">Line total</th></tr></thead>
           <tbody>${itemRows}</tbody>
-          <tfoot><tr><td colspan="2">Total</td><td class="num"><strong>${formatMoney(total)}</strong></td></tr></tfoot>
+          <tfoot><tr><td colspan="4">Total</td><td class="num"><strong>${formatMoney(total)}</strong></td></tr></tfoot>
         </table>
       ` : ""}
 
@@ -458,6 +522,10 @@ function renderDetail() {
   `;
 
   document.getElementById("back-btn").addEventListener("click", () => go("dashboard"));
+  document.getElementById("edit-btn").addEventListener("click", () => {
+    currentView = "edit";
+    renderProjectForm(p);
+  });
 
   /* ---- status sharing (PRD: FR7) ---- */
   const copyBtn = document.getElementById("share-copy");
@@ -468,27 +536,27 @@ function renderDetail() {
     const box = document.getElementById("share-date");
     return box ? box.checked : false;
   }
+  function includeTimeline() {
+    const box = document.getElementById("share-timeline");
+    return box ? box.checked : false;
+  }
   function showFeedback(msg) {
     feedback.textContent = msg;
     feedback.hidden = false;
   }
 
   if (copyBtn) copyBtn.addEventListener("click", async () => {
-    const text = buildStatusSummary(p, includeDate());
+    const text = buildStatusSummary(p, includeDate(), includeTimeline());
     try {
       await navigator.clipboard.writeText(text);
       showFeedback("Summary copied. Paste it into WhatsApp.");
     } catch (err) {
-      // Clipboard API can fail on some browsers/permissions.
-      // Fall back to showing the text for manual copy.
       showFeedback("Copy not allowed here. Select and copy:\n\n" + text);
     }
   });
 
   if (waBtn) waBtn.addEventListener("click", () => {
-    const text = buildStatusSummary(p, includeDate());
-    // wa.me opens WhatsApp with the message pre-filled. It never
-    // auto-sends; a human reviews and taps send (safe-send).
+    const text = buildStatusSummary(p, includeDate(), includeTimeline());
     const url = "https://wa.me/" + p.contact + "?text=" + encodeURIComponent(text);
     window.open(url, "_blank");
   });
@@ -550,19 +618,25 @@ function openReasonBox(title, onConfirm) {
 }
 
 /* ---------- status sharing (PRD: FR7) ----------
-   Plain-language summary for a client. The committed delivery
-   date is EXCLUDED by default and only added when the user
-   ticks the include-date box (business rule: written date
+   Plain-language summary for a client. Delivery date and full
+   timeline are both EXCLUDED by default and only added when the
+   user ticks their boxes (business rule: written date
    commitments to frustrated clients are high-risk). */
-function buildStatusSummary(project, includeDate) {
+function buildStatusSummary(project, includeDate, includeTimeline) {
   const stage = getStageById(db, project.stageId);
   const lines = [];
   lines.push("Hi, here is the latest status on your Studioforma order.");
   lines.push("");
   lines.push("Client: " + project.clientName);
 
-  const items = (project.items || []).map(it => it.name).filter(Boolean);
-  if (items.length) lines.push("Items: " + items.join(", "));
+  const items = (project.items || []).filter(it => it.name);
+  if (items.length) {
+    lines.push("Items:");
+    items.forEach(it => {
+      const qty = Number(it.qty) || 1;
+      lines.push("- " + qty + " x " + it.name);
+    });
+  }
 
   lines.push("Current stage: " + (stage ? stage.name : "-"));
 
@@ -570,9 +644,26 @@ function buildStatusSummary(project, includeDate) {
     lines.push("Expected delivery: " + formatDate(project.expectedDelivery));
   }
 
+  if (includeTimeline) {
+    lines.push("");
+    lines.push("Progress so far:");
+    project.history.forEach(h => {
+      lines.push("- " + timelineLine(h) + " (" + formatDate(h.timestamp) + ")");
+    });
+  }
+
   lines.push("");
   lines.push("- Team Studioforma");
   return lines.join("\n");
+}
+
+/* Plain-text (no HTML) version of a history event for sharing. */
+function timelineLine(h) {
+  if (h.action === "created") return "Started at " + h.toStage;
+  if (h.action === "advanced") return "Moved to " + h.toStage;
+  if (h.action === "moved_back") return "Returned to " + h.toStage;
+  if (h.action === "lost") return "Closed";
+  return h.action;
 }
 
 function historyLabel(h) {
@@ -593,6 +684,10 @@ function go(view, projectId) {
 function render() {
   if (!storageAvailable()) showPersistWarning();
   if (currentView === "add") renderAddForm();
+  else if (currentView === "edit") {
+    const p = getProjectById(db, currentProjectId);
+    if (p) renderProjectForm(p); else renderDashboard();
+  }
   else if (currentView === "detail") renderDetail();
   else renderDashboard();
 }
