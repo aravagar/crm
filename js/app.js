@@ -83,12 +83,19 @@ function projectCard(p) {
 }
 
 /* ---------- dashboard view ---------- */
-function renderDashboard() {
-  const ordered = getStagesInOrder(db);
-  const active = db.projects.filter(p => p.status === "active");
-  const lost = db.projects.filter(p => p.status === "lost");
-  const dispatched = db.projects.filter(p => p.status === "dispatched");
 
+/* Filter state lives outside render so it survives re-renders. */
+let searchTerm = "";
+let typeFilter = "";
+
+function matchesFilters(p) {
+  const nameOk = !searchTerm ||
+    p.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+  const typeOk = !typeFilter || p.projectType === typeFilter;
+  return nameOk && typeOk;
+}
+
+function renderDashboard() {
   if (db.projects.length === 0) {
     appEl.innerHTML = `
       <section class="empty card">
@@ -98,6 +105,53 @@ function renderDashboard() {
       </section>
     `;
     document.getElementById("empty-add").addEventListener("click", () => go("add"));
+    return;
+  }
+
+  // Distinct, non-empty project types feed the filter dropdown.
+  const types = [...new Set(db.projects.map(p => p.projectType).filter(Boolean))];
+
+  appEl.innerHTML = `
+    <div class="dash-controls">
+      <input id="dash-search" type="search" placeholder="Search client name..."
+        value="${escapeHtml(searchTerm)}">
+      <select id="dash-type">
+        <option value="">All types</option>
+        ${types.map(t =>
+          `<option ${t === typeFilter ? "selected" : ""}>${escapeHtml(t)}</option>`
+        ).join("")}
+      </select>
+    </div>
+    <div id="dash-results"></div>
+  `;
+
+  // Only the results area re-renders on input, so the search
+  // box keeps focus while typing.
+  document.getElementById("dash-search").addEventListener("input", e => {
+    searchTerm = e.target.value;
+    renderDashResults();
+  });
+  document.getElementById("dash-type").addEventListener("change", e => {
+    typeFilter = e.target.value;
+    renderDashResults();
+  });
+
+  renderDashResults();
+}
+
+function renderDashResults() {
+  const resultsEl = document.getElementById("dash-results");
+  const ordered = getStagesInOrder(db);
+
+  const filtered = db.projects.filter(matchesFilters);
+  const active = filtered.filter(p => p.status === "active");
+  const lost = filtered.filter(p => p.status === "lost");
+  const dispatched = filtered.filter(p => p.status === "dispatched");
+
+  if (filtered.length === 0) {
+    resultsEl.innerHTML = `
+      <p class="muted no-match">No matches. Try a different name or clear the filter.</p>
+    `;
     return;
   }
 
@@ -115,11 +169,11 @@ function renderDashboard() {
     `;
   }).join("");
 
-  appEl.innerHTML = `
+  resultsEl.innerHTML = `
     <div class="dash-summary muted">
       ${active.length} active · ${dispatched.length} dispatched · ${lost.length} lost
     </div>
-    ${groups || `<p class="muted">No active projects. Check the sections below.</p>`}
+    ${groups || `<p class="muted">No active projects match. Check the sections below.</p>`}
     ${dispatched.length ? collapsedSection("Dispatched", dispatched) : ""}
     ${lost.length ? collapsedSection("Lost", lost) : ""}
   `;

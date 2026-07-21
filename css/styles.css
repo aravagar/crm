@@ -519,3 +519,42 @@ h1 {
   .stage-actions { flex-direction: column; align-items: stretch; }
   .stage-actions .btn { width: 100%; }
 }
+
+/* ============================================================
+   Step 5 additions: search bar + type filter.
+   ============================================================ */
+
+.dash-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--gap);
+}
+
+#dash-search {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+#dash-search:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+#dash-type {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  max-width: 40%;
+}
+#dash-type:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+.no-match { padding: 24px 0; text-align: center; }
+
+@media (max-width: 600px) {
+  .dash-controls { flex-direction: column; }
+  #dash-type { max-width: 100%; }
+}
