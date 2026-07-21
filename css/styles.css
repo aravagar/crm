@@ -605,11 +605,24 @@ h1 {
    Step 8 additions: qty/price item rows, edit button, toggles.
    ============================================================ */
 
-/* item rows now have 6 columns: name, specs, qty, price, line, remove */
+/* item rows: 6 columns sized to fit inside the card.
+   min-width:0 on inputs lets them shrink instead of overflowing. */
 .item-row {
-  grid-template-columns: 1.1fr 1.5fr 0.5fr 0.8fr 0.8fr auto;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) 56px minmax(0, 1fr) auto 32px;
   align-items: center;
+  gap: 6px;
 }
+
+.item-row input { min-width: 0; }        /* critical: allow shrink */
+.item-row .it-qty { text-align: center; }
+
+/* hide number spinners so the narrow qty/price columns aren't clipped */
+.item-row input[type="number"]::-webkit-inner-spin-button,
+.item-row input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.item-row input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .item-row.item-head {
   font-size: 11px;
@@ -626,6 +639,15 @@ h1 {
   font-weight: 600;
   text-align: right;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.it-remove {
+  padding: 4px 0;
+  width: 32px;
+  text-align: center;
 }
 
 .detail-head-right {
@@ -640,13 +662,112 @@ h1 {
   gap: 8px 16px;
 }
 
-@media (max-width: 600px) {
-  /* stack item fields into a labeled block on narrow screens */
+/* the form card can be a touch wider so 6 columns breathe */
+.form-card { max-width: 720px; }
+
+@media (max-width: 640px) {
   .item-row {
     grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 10px;
   }
   .item-row.item-head { display: none; }
   .item-row .it-name { grid-column: 1 / -1; }
   .item-row .it-specs { grid-column: 1 / -1; }
-  .item-row .it-line { grid-column: 1 / -1; text-align: left; }
+  .item-row .it-line { grid-column: 1 / 2; text-align: left; align-self: center; }
+  .item-row .it-remove { grid-column: 2 / 3; justify-self: end; }
+}
+
+/* ============================================================
+   Step 7 additions: settings (stage + team management).
+   ============================================================ */
+
+.set-list { margin: 12px 0; }
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.set-stage-name {
+  flex: 1;
+  min-width: 140px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.set-stage-name:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+.phase-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.phase-sales { background: var(--walnut-soft); color: var(--walnut); }
+.phase-won { background: #f6edd4; color: var(--won); }
+.phase-production { background: #e6efe9; color: var(--advance); }
+.phase-terminal { background: #eee; color: var(--ink); }
+
+.set-row-actions { display: flex; gap: 4px; }
+
+.btn.mini { padding: 5px 9px; font-size: 12px; }
+
+.team-name { flex: 1; font-weight: 500; }
+
+.set-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.set-add input {
+  flex: 1;
+  min-width: 160px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.set-add input:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+.set-add select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.set-reassign {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px;
+  background: #fbeae7;
+  border-radius: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.set-reassign select {
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }

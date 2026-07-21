@@ -309,6 +309,89 @@ function setLastUsedPerson(data, name) {
   saveData(data);
 }
 
+/* ---------- Stage management (PRD: FR5) ----------
+   Rename, reorder, add, and remove stages. History entries
+   store stage NAMES (not ids), so past history is never
+   rewritten when a stage is renamed or removed. */
+
+function renameStage(data, stageId, newName) {
+  const s = getStageById(data, stageId);
+  if (!s || !newName.trim()) return false;
+  s.name = newName.trim();
+  saveData(data);
+  return true;
+}
+
+function moveStage(data, stageId, direction) {
+  const ordered = getStagesInOrder(data);
+  const idx = ordered.findIndex(s => s.id === stageId);
+  const swapWith = direction === "up" ? idx - 1 : idx + 1;
+  if (idx === -1 || swapWith < 0 || swapWith >= ordered.length) return false;
+  // swap the order values of the two neighbours
+  const a = ordered[idx], b = ordered[swapWith];
+  const tmp = a.order; a.order = b.order; b.order = tmp;
+  saveData(data);
+  return true;
+}
+
+function addStage(data, name, phase) {
+  if (!name.trim()) return false;
+  const maxOrder = data.stages.reduce((m, s) => Math.max(m, s.order), 0);
+  data.stages.push({
+    id: "stg_" + crypto.randomUUID().slice(0, 8),
+    name: name.trim(),
+    order: maxOrder + 1,
+    phase: phase || "sales"
+  });
+  saveData(data);
+  return true;
+}
+
+/* Removing a stage that still holds projects requires a
+   destination stage to move them to (PRD: FR5). Returns
+   the number of projects that had to be reassigned, or -1
+   if the removal is invalid. */
+function removeStage(data, stageId, reassignToId) {
+  if (data.stages.length <= 1) return -1; // never remove the last stage
+  const affected = data.projects.filter(p => p.stageId === stageId);
+  if (affected.length > 0) {
+    if (!reassignToId || reassignToId === stageId) return -1;
+    const dest = getStageById(data, reassignToId);
+    if (!dest) return -1;
+    affected.forEach(p => {
+      p.history.push({
+        action: "advanced",
+        fromStage: getStageById(data, stageId).name,
+        toStage: dest.name,
+        timestamp: new Date().toISOString(),
+        person: "",
+        reason: "Stage removed; project reassigned"
+      });
+      p.stageId = reassignToId;
+    });
+  }
+  data.stages = data.stages.filter(s => s.id !== stageId);
+  saveData(data);
+  return affected.length;
+}
+
+/* ---------- Team management (PRD: FR6) ---------- */
+
+function addTeamMember(data, name) {
+  const clean = name.trim();
+  if (!clean || data.team.includes(clean)) return false;
+  data.team.push(clean);
+  saveData(data);
+  return true;
+}
+
+function removeTeamMember(data, name) {
+  data.team = data.team.filter(n => n !== name);
+  if (data.lastUsedPerson === name) data.lastUsedPerson = "";
+  saveData(data);
+  return true;
+}
+
 /* ---------- Phone normalization ----------
    wa.me needs international format: 91XXXXXXXXXX, no + or
    spaces (PRD: FR7). We store it that way from the start. */

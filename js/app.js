@@ -674,6 +674,144 @@ function historyLabel(h) {
   return escapeHtml(h.action);
 }
 
+/* ---------- settings view (PRD: FR5, FR6) ----------
+   Stage management and team management. Kept deliberately
+   plain: this screen is used rarely, so clarity beats polish. */
+function renderSettings() {
+  const ordered = getStagesInOrder(db);
+
+  const stageRows = ordered.map((s, i) => `
+    <div class="set-row" data-stage="${s.id}">
+      <input type="text" class="set-stage-name" value="${escapeHtml(s.name)}">
+      <span class="phase-tag phase-${s.phase}">${s.phase}</span>
+      <div class="set-row-actions">
+        <button class="btn ghost mini" data-move="up" ${i === 0 ? "disabled" : ""}>&uarr;</button>
+        <button class="btn ghost mini" data-move="down" ${i === ordered.length - 1 ? "disabled" : ""}>&darr;</button>
+        <button class="btn ghost mini set-rename">Save</button>
+        <button class="btn danger mini set-remove">Remove</button>
+      </div>
+    </div>
+  `).join("");
+
+  const teamRows = db.team.map(name => `
+    <div class="set-row team-row" data-name="${escapeHtml(name)}">
+      <span class="team-name">${escapeHtml(name)}</span>
+      <button class="btn danger mini team-remove">Remove</button>
+    </div>
+  `).join("");
+
+  appEl.innerHTML = `
+    <button class="btn ghost back-btn" id="back-btn">&larr; Dashboard</button>
+
+    <section class="card">
+      <h1>Stages</h1>
+      <p class="muted small">Rename, reorder, add or remove. Past history keeps its original stage names.</p>
+      <div class="set-list">${stageRows}</div>
+      <div class="set-add">
+        <input type="text" id="new-stage-name" placeholder="New stage name">
+        <select id="new-stage-phase">
+          <option value="sales">sales</option>
+          <option value="won">won</option>
+          <option value="production">production</option>
+          <option value="terminal">terminal</option>
+        </select>
+        <button class="btn primary" id="add-stage">Add stage</button>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px;">
+      <h1>Team</h1>
+      <p class="muted small">Names shown in the "who moved it" picker.</p>
+      <div class="set-list">${teamRows || `<p class="muted">No team members.</p>`}</div>
+      <div class="set-add">
+        <input type="text" id="new-team-name" placeholder="New team member name">
+        <button class="btn primary" id="add-team">Add member</button>
+      </div>
+    </section>
+
+    <p id="set-feedback" class="share-feedback" hidden></p>
+  `;
+
+  document.getElementById("back-btn").addEventListener("click", () => go("dashboard"));
+
+  function feedback(msg) {
+    const f = document.getElementById("set-feedback");
+    f.textContent = msg;
+    f.hidden = false;
+  }
+
+  // Stage rows: one delegated listener for the whole list.
+  document.querySelector(".card .set-list").addEventListener("click", e => {
+    const row = e.target.closest(".set-row");
+    if (!row) return;
+    const stageId = row.dataset.stage;
+    if (!stageId) return;
+
+    if (e.target.dataset.move) {
+      moveStage(db, stageId, e.target.dataset.move);
+      renderSettings();
+    } else if (e.target.classList.contains("set-rename")) {
+      const name = row.querySelector(".set-stage-name").value;
+      renameStage(db, stageId, name);
+      feedback("Stage renamed.");
+    } else if (e.target.classList.contains("set-remove")) {
+      handleRemoveStage(stageId);
+    }
+  });
+
+  document.getElementById("add-stage").addEventListener("click", () => {
+    const name = document.getElementById("new-stage-name").value;
+    const phase = document.getElementById("new-stage-phase").value;
+    if (addStage(db, name, phase)) renderSettings();
+  });
+
+  // Team rows.
+  document.querySelectorAll(".team-row .team-remove").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const name = btn.closest(".team-row").dataset.name;
+      removeTeamMember(db, name);
+      renderSettings();
+    });
+  });
+
+  document.getElementById("add-team").addEventListener("click", () => {
+    const name = document.getElementById("new-team-name").value;
+    if (addTeamMember(db, name)) renderSettings();
+    else feedback("That name is empty or already exists.");
+  });
+}
+
+/* Removing a stage: if projects are in it, ask where to move
+   them via a simple confirm-and-pick prompt (PRD: FR5). */
+function handleRemoveStage(stageId) {
+  const affected = db.projects.filter(p => p.stageId === stageId);
+  if (affected.length === 0) {
+    removeStage(db, stageId);
+    renderSettings();
+    return;
+  }
+  // Build a tiny inline picker rather than a browser prompt.
+  const others = getStagesInOrder(db).filter(s => s.id !== stageId);
+  const options = others.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+  const row = document.querySelector(`.set-row[data-stage="${stageId}"]`);
+  row.insertAdjacentHTML("afterend", `
+    <div class="set-reassign" id="reassign-box">
+      <span>${affected.length} project(s) here. Move them to:</span>
+      <select id="reassign-to">${options}</select>
+      <button class="btn danger mini" id="reassign-confirm">Remove & move</button>
+      <button class="btn ghost mini" id="reassign-cancel">Cancel</button>
+    </div>
+  `);
+  document.getElementById("reassign-confirm").addEventListener("click", () => {
+    const dest = document.getElementById("reassign-to").value;
+    removeStage(db, stageId, dest);
+    renderSettings();
+  });
+  document.getElementById("reassign-cancel").addEventListener("click", () => {
+    document.getElementById("reassign-box").remove();
+  });
+}
+
 /* ---------- routing ---------- */
 function go(view, projectId) {
   currentView = view;
@@ -689,6 +827,7 @@ function render() {
     if (p) renderProjectForm(p); else renderDashboard();
   }
   else if (currentView === "detail") renderDetail();
+  else if (currentView === "settings") renderSettings();
   else renderDashboard();
 }
 
@@ -708,6 +847,7 @@ appEl.addEventListener("click", e => {
 
 /* topbar navigation */
 document.getElementById("nav-dashboard").addEventListener("click", () => go("dashboard"));
+document.getElementById("nav-settings").addEventListener("click", () => go("settings"));
 document.getElementById("nav-add").addEventListener("click", () => go("add"));
 
 render();
