@@ -188,6 +188,88 @@ function addNote(data, projectId, text) {
   saveData(data);
 }
 
+/* ---------- Stage movement (PRD: FR4) ----------
+   Three moves only: advance one stage, move back one stage
+   (reason required), mark as lost (pre-Won only, reason
+   required). Every move appends an immutable history event
+   with who, when, and why. There are no arbitrary jumps. */
+
+function advanceProject(data, projectId, person) {
+  const p = getProjectById(data, projectId);
+  if (!p || p.status !== "active") return false;
+
+  const ordered = getStagesInOrder(data);
+  const idx = ordered.findIndex(s => s.id === p.stageId);
+  if (idx === -1) return false;               // unknown stage
+  if (idx >= ordered.length - 1) return false; // already at last stage
+
+  const from = ordered[idx];
+  const to = ordered[idx + 1];
+  p.stageId = to.id;
+  p.history.push({
+    action: "advanced",
+    fromStage: from.name,
+    toStage: to.name,
+    timestamp: new Date().toISOString(),
+    person: person,
+    reason: ""
+  });
+
+  // Reaching the terminal stage (Dispatched) closes the project
+  // as a success and moves it to the collapsed section.
+  if (to.phase === "terminal") p.status = "dispatched";
+
+  setLastUsedPerson(data, person);
+  saveData(data);
+  return true;
+}
+
+function moveProjectBack(data, projectId, person, reason) {
+  const p = getProjectById(data, projectId);
+  if (!p || p.status !== "active" || !reason.trim()) return false;
+
+  const ordered = getStagesInOrder(data);
+  const idx = ordered.findIndex(s => s.id === p.stageId);
+  if (idx <= 0) return false; // already at first stage
+
+  const from = ordered[idx];
+  const to = ordered[idx - 1];
+  p.stageId = to.id;
+  p.history.push({
+    action: "moved_back",
+    fromStage: from.name,
+    toStage: to.name,
+    timestamp: new Date().toISOString(),
+    person: person,
+    reason: reason.trim()
+  });
+
+  setLastUsedPerson(data, person);
+  saveData(data);
+  return true;
+}
+
+function markProjectLost(data, projectId, person, reason) {
+  const p = getProjectById(data, projectId);
+  if (!p || p.status !== "active" || !reason.trim()) return false;
+  if (!isPreWonStage(data, p.stageId)) return false; // Lost only before Advance Recd
+
+  const from = getStageById(data, p.stageId);
+  p.status = "lost";
+  p.history.push({
+    action: "lost",
+    fromStage: from ? from.name : "?",
+    toStage: null,
+    timestamp: new Date().toISOString(),
+    person: person,
+    reason: reason.trim()
+  });
+
+  setLastUsedPerson(data, person);
+  saveData(data);
+  return true;
+}
+
 /* Remember who last made a change, so the person picker
    defaults to them next time (PRD: FR4). */
 function setLastUsedPerson(data, name) {

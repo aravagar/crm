@@ -454,3 +454,68 @@ h1 {
   .item-row .it-specs { grid-column: 1 / -1; }
   .note-item { flex-direction: column; gap: 2px; }
 }
+
+/* ============================================================
+   Step 4 additions: stage action buttons + reason box.
+   ============================================================ */
+
+.stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.person-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.person-pick select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.btn.advance { background: var(--advance); color: #fff; }
+.btn.advance:hover { background: #256540; }
+.btn.danger {
+  background: transparent;
+  color: var(--lost);
+  border-color: var(--lost);
+}
+.btn.danger:hover { background: #fbeae7; }
+
+.reason-box { margin-top: 12px; background: var(--paper); }
+.reason-title { font-weight: 600; margin-bottom: 8px; }
+.reason-box input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+}
+.reason-box input:focus { outline: 2px solid var(--walnut); outline-offset: 0; }
+
+.closed-note {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .stage-actions { flex-direction: column; align-items: stretch; }
+  .stage-actions .btn { width: 100%; }
+}

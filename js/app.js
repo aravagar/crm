@@ -301,6 +301,46 @@ function renderDetail() {
     </li>
   `).join("");
 
+  const ordered = getStagesInOrder(db);
+  const idx = ordered.findIndex(s => s.id === p.stageId);
+  const nextStage = idx > -1 && idx < ordered.length - 1 ? ordered[idx + 1] : null;
+  const prevStage = idx > 0 ? ordered[idx - 1] : null;
+  const canLose = p.status === "active" && isPreWonStage(db, p.stageId);
+  const personOptions = db.team.map(name =>
+    `<option ${name === db.lastUsedPerson ? "selected" : ""}>${escapeHtml(name)}</option>`
+  ).join("");
+
+  const actionsHtml = p.status !== "active" ? `
+    <p class="closed-note muted">
+      This project is ${p.status === "lost" ? "marked as Lost" : "Dispatched"} and closed.
+    </p>
+  ` : `
+    <div class="stage-actions">
+      <label class="person-pick">By
+        <select id="act-person">${personOptions}</select>
+      </label>
+      ${nextStage ? `
+        <button class="btn advance" id="act-advance">
+          Advance &rarr; ${escapeHtml(nextStage.name)}
+        </button>` : ""}
+      ${prevStage ? `
+        <button class="btn ghost" id="act-back">
+          &larr; Back to ${escapeHtml(prevStage.name)}
+        </button>` : ""}
+      ${canLose ? `
+        <button class="btn danger" id="act-lost">Mark as Lost</button>` : ""}
+    </div>
+    <div class="reason-box card" id="reason-box" hidden>
+      <p id="reason-title" class="reason-title"></p>
+      <input id="reason-input" type="text" placeholder="Reason (required)">
+      <p id="reason-error" class="form-error" hidden>A reason is required.</p>
+      <div class="form-actions">
+        <button class="btn ghost" id="reason-cancel">Cancel</button>
+        <button class="btn primary" id="reason-confirm">Confirm</button>
+      </div>
+    </div>
+  `;
+
   appEl.innerHTML = `
     <button class="btn ghost back-btn" id="back-btn">&larr; Dashboard</button>
 
@@ -310,6 +350,7 @@ function renderDetail() {
         <span class="chip">${escapeHtml(stage ? stage.name : "?")}</span>
       </div>
       ${veneerStrip(p)}
+      ${actionsHtml}
 
       <dl class="detail-facts">
         ${p.projectType ? `<div><dt>Project type</dt><dd>${escapeHtml(p.projectType)}</dd></div>` : ""}
@@ -352,6 +393,54 @@ function renderDetail() {
     addNote(db, p.id, input.value);
     renderDetail(); // re-draw with the new note
   });
+
+  /* ---- stage action wiring (only present on active projects) ---- */
+  const advBtn = document.getElementById("act-advance");
+  const backStageBtn = document.getElementById("act-back");
+  const lostBtn = document.getElementById("act-lost");
+
+  if (advBtn) advBtn.addEventListener("click", () => {
+    const person = document.getElementById("act-person").value;
+    advanceProject(db, p.id, person);
+    renderDetail();
+  });
+
+  // Move Back and Mark Lost both need a reason, so they share
+  // one small inline reason box instead of browser prompt().
+  if (backStageBtn) backStageBtn.addEventListener("click", () =>
+    openReasonBox("Why is this moving back?", reason => {
+      const person = document.getElementById("act-person").value;
+      moveProjectBack(db, p.id, person, reason);
+      renderDetail();
+    })
+  );
+
+  if (lostBtn) lostBtn.addEventListener("click", () =>
+    openReasonBox("Why was this project lost?", reason => {
+      const person = document.getElementById("act-person").value;
+      markProjectLost(db, p.id, person, reason);
+      renderDetail();
+    })
+  );
+}
+
+/* Shows the reason box, runs onConfirm(reason) only if a
+   non-empty reason was entered (PRD: FR4). */
+function openReasonBox(title, onConfirm) {
+  const box = document.getElementById("reason-box");
+  const input = document.getElementById("reason-input");
+  const err = document.getElementById("reason-error");
+  document.getElementById("reason-title").textContent = title;
+  box.hidden = false;
+  err.hidden = true;
+  input.value = "";
+  input.focus();
+
+  document.getElementById("reason-cancel").onclick = () => { box.hidden = true; };
+  document.getElementById("reason-confirm").onclick = () => {
+    if (!input.value.trim()) { err.hidden = false; return; }
+    onConfirm(input.value.trim());
+  };
 }
 
 function historyLabel(h) {
